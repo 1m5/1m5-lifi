@@ -1,2 +1,2 @@
 # 1m5-uv
-Ultraviolet Sensor
+Ultraviolet (UV) as a sensor.

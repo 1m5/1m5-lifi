@@ -1,0 +1,288 @@
+package io.onemfive.uv;
+
+import io.onemfive.core.ServiceRequest;
+import io.onemfive.core.notification.NotificationService;
+import io.onemfive.data.DID;
+import io.onemfive.data.Envelope;
+import io.onemfive.data.EventMessage;
+import io.onemfive.data.NetworkPeer;
+import io.onemfive.data.util.DLC;
+import io.onemfive.data.util.DataFormatException;
+import io.onemfive.sensors.*;
+import io.onemfive.uv.network.UVPeerManager;
+
+import java.io.*;
+import java.util.Properties;
+import java.util.logging.Logger;
+
+public class UVSensor extends BaseSensor implements UVSessionListener {
+
+    private static final Logger LOG = Logger.getLogger(UVSensor.class.getName());
+
+    private UVSession session;
+    private UVPeer localNode;
+    private UVPeerManager peerManager;
+
+    public UVSensor(SensorManager sensorManager, Envelope.Sensitivity sensitivity, Integer priority) {
+        super(sensorManager, sensitivity, priority);
+    }
+
+    @Override
+    public PeerManager getPeerManager() {
+        return peerManager;
+    }
+
+    @Override
+    public String[] getOperationEndsWith() {
+        return new String[]{".rad"};
+    }
+
+    @Override
+    public String[] getURLBeginsWith() {
+        return new String[]{"rad"};
+    }
+
+    @Override
+    public String[] getURLEndsWith() {
+        return new String[]{".rad"};
+    }
+
+    /**
+     * Sends UTF-8 content to a Destination using UV.
+     * @param envelope Envelope containing SensorRequest as data.
+     *                 To DID must contain base64 encoded UV destination key.
+     * @return boolean was successful
+     */
+    @Override
+    public boolean send(Envelope envelope) {
+        LOG.info("Sending UV Message...");
+        SensorRequest request = (SensorRequest) DLC.getData(SensorRequest.class,envelope);
+        if(request == null){
+            LOG.warning("No SensorRequest in Envelope.");
+            request.errorCode = ServiceRequest.REQUEST_REQUIRED;
+            return false;
+        }
+        NetworkPeer toPeer = request.to.getPeer(NetworkPeer.Network.UV.name());
+        if(toPeer == null) {
+            LOG.warning("No Peer for UV found in toDID while sending to UV.");
+            request.errorCode = SensorRequest.TO_PEER_REQUIRED;
+            return false;
+        }
+        if(!NetworkPeer.Network.UV.name().equals((toPeer.getNetwork()))) {
+            LOG.warning("UV requires a UVPeer.");
+            request.errorCode = SensorRequest.TO_PEER_WRONG_NETWORK;
+            return false;
+        }
+        LOG.info("Content to send: "+request.content);
+        if(request.content == null) {
+            LOG.warning("No content found in Envelope while sending to UV.");
+            request.errorCode = SensorRequest.NO_CONTENT;
+            return false;
+        }
+        if(request.content.length() > UVDatagramBuilder.DATAGRAM_MAX_SIZE) {
+            // Just warn for now
+            // TODO: Split into multiple serialized datagrams
+            LOG.warning("Content longer than "+ UVDatagramBuilder.DATAGRAM_MAX_SIZE+". May have issues.");
+        }
+
+        Destination toDestination = session.lookupDestination(toPeer.getAddress());
+        if(toDestination == null) {
+            LOG.warning("UV Peer To Destination not found.");
+            request.errorCode = SensorRequest.TO_PEER_NOT_FOUND;
+            return false;
+        }
+        UVDatagramBuilder builder = new UVDatagramBuilder(session);
+        UVDatagram datagram = builder.makeUVDatagram(request.content.getBytes());
+        Properties options = new Properties();
+        if(session.sendMessage(toDestination, datagram, options)) {
+            LOG.info("UV Message sent.");
+            return true;
+        } else {
+            LOG.warning("UV Message sending failed.");
+            request.errorCode = SensorRequest.SENDING_FAILED;
+            return false;
+        }
+    }
+
+    /**
+     * Incoming
+     * @param envelope
+     * @return
+     */
+    @Override
+    public boolean reply(Envelope envelope) {
+//        sensorManager.sendToBus(envelope);
+        return true;
+    }
+
+    /**
+     * Will be called only if you register via
+     * setSessionListener() or addSessionListener().
+     * And if you are doing that, just use UVSessionListener.
+     *
+     * @param session session to notify
+     * @param msgId message number available
+     * @param size size of the message - why it's a long and not an int is a mystery
+     */
+    @Override
+    public void messageAvailable(UVSession session, int msgId, long size) {
+        LOG.info("Message received by UV Sensor...");
+        byte[] msg = session.receiveMessage(msgId);
+
+        LOG.info("Loading UV Datagram...");
+        UVDatagramExtractor d = new UVDatagramExtractor();
+        d.extractUVDatagram(msg);
+        LOG.info("UV Datagram loaded.");
+        byte[] payload = d.getPayload();
+        String strPayload = new String(payload);
+        LOG.info("Getting sender as UV Destination...");
+        Destination sender = d.getSender();
+        String address = sender.toBase64();
+        String fingerprint = null;
+        try {
+            fingerprint = sender.getHash().toBase64();
+        } catch (DataFormatException e) {
+            LOG.warning(e.getLocalizedMessage());
+        } catch (IOException e) {
+            LOG.warning(e.getLocalizedMessage());
+        }
+        LOG.info("Received UV Message:\n\tFrom: " + address +"\n\tContent: " + strPayload);
+
+        Envelope e = Envelope.eventFactory(EventMessage.Type.TEXT);
+        NetworkPeer from = new NetworkPeer(NetworkPeer.Network.UV.name());
+        from.setAddress(address);
+        from.setFingerprint(fingerprint);
+        DID did = new DID();
+        did.addPeer(from);
+        e.setDID(did);
+        EventMessage m = (EventMessage) e.getMessage();
+        m.setName(fingerprint);
+        m.setMessage(strPayload);
+        DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
+        LOG.info("Sending Event Message to Notification Service...");
+//        sensorManager.sendToBus(e);
+    }
+
+    /**
+     * Notify the service that the session has been terminated.
+     * All registered listeners will be called.
+     *
+     * @param session session to report disconnect to
+     */
+    @Override
+    public void disconnected(UVSession session) {
+        LOG.warning("UV Session reporting disconnection.");
+        routerStatusChanged();
+    }
+
+    /**
+     * Notify the client that some throwable occurred.
+     * All registered listeners will be called.
+     *
+     * @param session session to report error occurred
+     * @param message message received describing error
+     * @param throwable throwable thrown during error
+     */
+    @Override
+    public void errorOccurred(UVSession session, String message, Throwable throwable) {
+        LOG.severe("Router says: "+message+": "+throwable.getLocalizedMessage());
+        routerStatusChanged();
+    }
+
+    public void checkRouterStats() {
+        LOG.info("UVSensor stats:" +
+                "\n\t...");
+    }
+
+    private void routerStatusChanged() {
+        String statusText;
+        switch (getStatus()) {
+            case NETWORK_CONNECTING:
+                statusText = "Testing UV Network...";
+                break;
+            case NETWORK_CONNECTED:
+                statusText = "Connected to UV Network.";
+                restartAttempts = 0; // Reset restart attempts
+                break;
+            case NETWORK_STOPPED:
+                statusText = "Disconnected from UV Network.";
+                restart();
+                break;
+            default: {
+                statusText = "Unhandled UV Network Status: "+getStatus().name();
+            }
+        }
+        LOG.info(statusText);
+    }
+
+    /**
+     * Sets up a {@link UVSession}, using the UV Destination stored on disk or creating a new UV
+     * destination if no key file exists.
+     */
+    private void initializeSession() throws Exception {
+        LOG.info("Initializing UV Session....");
+        updateStatus(SensorStatus.INITIALIZING);
+
+        Properties sessionProperties = new Properties();
+        session = new UVSession();
+        session.connect();
+
+        Destination localDestination = session.getLocalDestination();
+        String address = localDestination.toBase64();
+        String fingerprint = localDestination.getHash().toBase64();
+        LOG.info("UVSensor Local destination key in base64: " + address);
+        LOG.info("UVSensor Local destination fingerprint (hash) in base64: " + fingerprint);
+
+        session.addSessionListener(this);
+
+        NetworkPeer np = new NetworkPeer(NetworkPeer.Network.SDR.name());
+        np.getDid().getPublicKey().setFingerprint(fingerprint);
+        np.getDid().getPublicKey().setAddress(address);
+
+        DID localDID = new DID();
+        localDID.addPeer(np);
+
+        // Publish local UV address
+        LOG.info("Publishing UV Network Peer's DID...");
+        Envelope e = Envelope.eventFactory(EventMessage.Type.STATUS_DID);
+        EventMessage m = (EventMessage) e.getMessage();
+        m.setName(fingerprint);
+        m.setMessage(localDID);
+        DLC.addRoute(NotificationService.class, NotificationService.OPERATION_PUBLISH, e);
+//        sensorManager.sendToBus(e);
+    }
+
+    public UVPeer getLocalNode() {
+        return localNode;
+    }
+
+    @Override
+    public boolean start(java.util.Properties properties) {
+        return false;
+    }
+
+    @Override
+    public boolean pause() {
+        return false;
+    }
+
+    @Override
+    public boolean unpause() {
+        return false;
+    }
+
+    @Override
+    public boolean restart() {
+        return false;
+    }
+
+    @Override
+    public boolean shutdown() {
+        return false;
+    }
+
+    @Override
+    public boolean gracefulShutdown() {
+        return false;
+    }
+}
