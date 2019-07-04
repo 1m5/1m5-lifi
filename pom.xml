@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>io.onemfive</groupId>
-	<artifactId>uv</artifactId>
+	<artifactId>lifi</artifactId>
 	<version>0.6.1-SNAPSHOT</version>
 
 	<packaging>jar</packaging>
@@ -18,7 +18,7 @@
 
 	<name>1m5-uv</name>
 	<url>https://1m5.io</url>
-	<description>Invisible Matrix Services - Ultraviolet Library</description>
+	<description>Invisible Matrix Services - Light Fidelity Library</description>
 	<inceptionYear>2019</inceptionYear>
 
 	<developers>
@@ -28,9 +28,9 @@
 		</developer>
 	</developers>
 	<scm>
-		<connection>scm:git@github.com/1m5/1m5-uv</connection>
-		<developerConnection>scm:git@github.com/1m5/1m5-uv</developerConnection>
-		<url>git@github.com/1m5/1m5-uv</url>
+		<connection>scm:git@github.com/1m5/1m5-lifi</connection>
+		<developerConnection>scm:git@github.com/1m5/1m5-lifi</developerConnection>
+		<url>git@github.com/1m5/1m5-lifi</url>
 	</scm>
 
 	<repositories>

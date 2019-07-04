@@ -1,4 +1,4 @@
-package io.onemfive.uv.signals;
+package io.onemfive.lifi.signals;
 
 import org.junit.Test;
 

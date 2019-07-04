@@ -1,4 +1,4 @@
-package io.onemfive.uv;
+package io.onemfive.lifi;
 
 import io.onemfive.core.ServiceRequest;
 import io.onemfive.core.notification.NotificationService;
@@ -9,21 +9,21 @@ import io.onemfive.data.NetworkPeer;
 import io.onemfive.data.util.DLC;
 import io.onemfive.data.util.DataFormatException;
 import io.onemfive.sensors.*;
-import io.onemfive.uv.network.UVPeerManager;
+import io.onemfive.lifi.network.LiFiPeerManager;
 
 import java.io.*;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-public class UVSensor extends BaseSensor implements UVSessionListener {
+public class LiFiSensor extends BaseSensor implements LiFiSessionListener {
 
-    private static final Logger LOG = Logger.getLogger(UVSensor.class.getName());
+    private static final Logger LOG = Logger.getLogger(LiFiSensor.class.getName());
 
-    private UVSession session;
-    private UVPeer localNode;
-    private UVPeerManager peerManager;
+    private LiFiSession session;
+    private LiFiPeer localNode;
+    private LiFiPeerManager peerManager;
 
-    public UVSensor(SensorManager sensorManager, Envelope.Sensitivity sensitivity, Integer priority) {
+    public LiFiSensor(SensorManager sensorManager, Envelope.Sensitivity sensitivity, Integer priority) {
         super(sensorManager, sensitivity, priority);
     }
 
@@ -34,71 +34,71 @@ public class UVSensor extends BaseSensor implements UVSessionListener {
 
     @Override
     public String[] getOperationEndsWith() {
-        return new String[]{".rad"};
+        return new String[]{".lifi"};
     }
 
     @Override
     public String[] getURLBeginsWith() {
-        return new String[]{"rad"};
+        return new String[]{"lifi"};
     }
 
     @Override
     public String[] getURLEndsWith() {
-        return new String[]{".rad"};
+        return new String[]{".lifi"};
     }
 
     /**
-     * Sends UTF-8 content to a Destination using UV.
+     * Sends UTF-8 content to a Destination using LiFi.
      * @param envelope Envelope containing SensorRequest as data.
-     *                 To DID must contain base64 encoded UV destination key.
+     *                 To DID must contain base64 encoded LiFi destination key.
      * @return boolean was successful
      */
     @Override
     public boolean send(Envelope envelope) {
-        LOG.info("Sending UV Message...");
+        LOG.info("Sending LiFi Message...");
         SensorRequest request = (SensorRequest) DLC.getData(SensorRequest.class,envelope);
         if(request == null){
             LOG.warning("No SensorRequest in Envelope.");
             request.errorCode = ServiceRequest.REQUEST_REQUIRED;
             return false;
         }
-        NetworkPeer toPeer = request.to.getPeer(NetworkPeer.Network.UV.name());
+        NetworkPeer toPeer = request.to.getPeer(NetworkPeer.Network.LIFI.name());
         if(toPeer == null) {
-            LOG.warning("No Peer for UV found in toDID while sending to UV.");
+            LOG.warning("No Peer for LiFi found in toDID while sending to LiFi.");
             request.errorCode = SensorRequest.TO_PEER_REQUIRED;
             return false;
         }
-        if(!NetworkPeer.Network.UV.name().equals((toPeer.getNetwork()))) {
-            LOG.warning("UV requires a UVPeer.");
+        if(!NetworkPeer.Network.LIFI.name().equals((toPeer.getNetwork()))) {
+            LOG.warning("LiFi requires a LiFiPeer.");
             request.errorCode = SensorRequest.TO_PEER_WRONG_NETWORK;
             return false;
         }
         LOG.info("Content to send: "+request.content);
         if(request.content == null) {
-            LOG.warning("No content found in Envelope while sending to UV.");
+            LOG.warning("No content found in Envelope while sending to LiFi.");
             request.errorCode = SensorRequest.NO_CONTENT;
             return false;
         }
-        if(request.content.length() > UVDatagramBuilder.DATAGRAM_MAX_SIZE) {
+        if(request.content.length() > LiFiDatagramBuilder.DATAGRAM_MAX_SIZE) {
             // Just warn for now
             // TODO: Split into multiple serialized datagrams
-            LOG.warning("Content longer than "+ UVDatagramBuilder.DATAGRAM_MAX_SIZE+". May have issues.");
+            LOG.warning("Content longer than "+ LiFiDatagramBuilder.DATAGRAM_MAX_SIZE+". May have issues.");
         }
 
         Destination toDestination = session.lookupDestination(toPeer.getAddress());
         if(toDestination == null) {
-            LOG.warning("UV Peer To Destination not found.");
+            LOG.warning("LiFi Peer To Destination not found.");
             request.errorCode = SensorRequest.TO_PEER_NOT_FOUND;
             return false;
         }
-        UVDatagramBuilder builder = new UVDatagramBuilder(session);
-        UVDatagram datagram = builder.makeUVDatagram(request.content.getBytes());
+        LiFiDatagramBuilder builder = new LiFiDatagramBuilder(session);
+        LiFiDatagram datagram = builder.makeLiFIDatagram(request.content.getBytes());
         Properties options = new Properties();
         if(session.sendMessage(toDestination, datagram, options)) {
-            LOG.info("UV Message sent.");
+            LOG.info("LiFi Message sent.");
             return true;
         } else {
-            LOG.warning("UV Message sending failed.");
+            LOG.warning("LiFi Message sending failed.");
             request.errorCode = SensorRequest.SENDING_FAILED;
             return false;
         }
@@ -118,24 +118,24 @@ public class UVSensor extends BaseSensor implements UVSessionListener {
     /**
      * Will be called only if you register via
      * setSessionListener() or addSessionListener().
-     * And if you are doing that, just use UVSessionListener.
+     * And if you are doing that, just use LiFiSessionListener.
      *
      * @param session session to notify
      * @param msgId message number available
      * @param size size of the message - why it's a long and not an int is a mystery
      */
     @Override
-    public void messageAvailable(UVSession session, int msgId, long size) {
-        LOG.info("Message received by UV Sensor...");
+    public void messageAvailable(LiFiSession session, int msgId, long size) {
+        LOG.info("Message received by LiFi Sensor...");
         byte[] msg = session.receiveMessage(msgId);
 
-        LOG.info("Loading UV Datagram...");
-        UVDatagramExtractor d = new UVDatagramExtractor();
-        d.extractUVDatagram(msg);
-        LOG.info("UV Datagram loaded.");
+        LOG.info("Loading LiFi Datagram...");
+        LiFiDatagramExtractor d = new LiFiDatagramExtractor();
+        d.extractLiFiDatagram(msg);
+        LOG.info("LiFi Datagram loaded.");
         byte[] payload = d.getPayload();
         String strPayload = new String(payload);
-        LOG.info("Getting sender as UV Destination...");
+        LOG.info("Getting sender as LiFi Destination...");
         Destination sender = d.getSender();
         String address = sender.toBase64();
         String fingerprint = null;
@@ -146,10 +146,10 @@ public class UVSensor extends BaseSensor implements UVSessionListener {
         } catch (IOException e) {
             LOG.warning(e.getLocalizedMessage());
         }
-        LOG.info("Received UV Message:\n\tFrom: " + address +"\n\tContent: " + strPayload);
+        LOG.info("Received LiFi Message:\n\tFrom: " + address +"\n\tContent: " + strPayload);
 
         Envelope e = Envelope.eventFactory(EventMessage.Type.TEXT);
-        NetworkPeer from = new NetworkPeer(NetworkPeer.Network.UV.name());
+        NetworkPeer from = new NetworkPeer(NetworkPeer.Network.LIFI.name());
         from.setAddress(address);
         from.setFingerprint(fingerprint);
         DID did = new DID();
@@ -170,8 +170,8 @@ public class UVSensor extends BaseSensor implements UVSessionListener {
      * @param session session to report disconnect to
      */
     @Override
-    public void disconnected(UVSession session) {
-        LOG.warning("UV Session reporting disconnection.");
+    public void disconnected(LiFiSession session) {
+        LOG.warning("LiFi Session reporting disconnection.");
         routerStatusChanged();
     }
 
@@ -184,13 +184,13 @@ public class UVSensor extends BaseSensor implements UVSessionListener {
      * @param throwable throwable thrown during error
      */
     @Override
-    public void errorOccurred(UVSession session, String message, Throwable throwable) {
+    public void errorOccurred(LiFiSession session, String message, Throwable throwable) {
         LOG.severe("Router says: "+message+": "+throwable.getLocalizedMessage());
         routerStatusChanged();
     }
 
     public void checkRouterStats() {
-        LOG.info("UVSensor stats:" +
+        LOG.info("LiFiSensor stats:" +
                 "\n\t...");
     }
 
@@ -198,52 +198,52 @@ public class UVSensor extends BaseSensor implements UVSessionListener {
         String statusText;
         switch (getStatus()) {
             case NETWORK_CONNECTING:
-                statusText = "Testing UV Network...";
+                statusText = "Testing LiFi Network...";
                 break;
             case NETWORK_CONNECTED:
-                statusText = "Connected to UV Network.";
+                statusText = "Connected to LiFi Network.";
                 restartAttempts = 0; // Reset restart attempts
                 break;
             case NETWORK_STOPPED:
-                statusText = "Disconnected from UV Network.";
+                statusText = "Disconnected from LiFi Network.";
                 restart();
                 break;
             default: {
-                statusText = "Unhandled UV Network Status: "+getStatus().name();
+                statusText = "Unhandled LiFi Network Status: "+getStatus().name();
             }
         }
         LOG.info(statusText);
     }
 
     /**
-     * Sets up a {@link UVSession}, using the UV Destination stored on disk or creating a new UV
+     * Sets up a {@link LiFiSession}, using the LiFi Destination stored on disk or creating a new LiFi
      * destination if no key file exists.
      */
     private void initializeSession() throws Exception {
-        LOG.info("Initializing UV Session....");
+        LOG.info("Initializing LiFi Session....");
         updateStatus(SensorStatus.INITIALIZING);
 
         Properties sessionProperties = new Properties();
-        session = new UVSession();
+        session = new LiFiSession();
         session.connect();
 
         Destination localDestination = session.getLocalDestination();
         String address = localDestination.toBase64();
         String fingerprint = localDestination.getHash().toBase64();
-        LOG.info("UVSensor Local destination key in base64: " + address);
-        LOG.info("UVSensor Local destination fingerprint (hash) in base64: " + fingerprint);
+        LOG.info("LiFiSensor Local destination key in base64: " + address);
+        LOG.info("LiFiSensor Local destination fingerprint (hash) in base64: " + fingerprint);
 
         session.addSessionListener(this);
 
-        NetworkPeer np = new NetworkPeer(NetworkPeer.Network.SDR.name());
+        NetworkPeer np = new NetworkPeer(NetworkPeer.Network.LIFI.name());
         np.getDid().getPublicKey().setFingerprint(fingerprint);
         np.getDid().getPublicKey().setAddress(address);
 
         DID localDID = new DID();
         localDID.addPeer(np);
 
-        // Publish local UV address
-        LOG.info("Publishing UV Network Peer's DID...");
+        // Publish local LiFi address
+        LOG.info("Publishing LiFi Network Peer's DID...");
         Envelope e = Envelope.eventFactory(EventMessage.Type.STATUS_DID);
         EventMessage m = (EventMessage) e.getMessage();
         m.setName(fingerprint);
@@ -252,7 +252,7 @@ public class UVSensor extends BaseSensor implements UVSessionListener {
 //        sensorManager.sendToBus(e);
     }
 
-    public UVPeer getLocalNode() {
+    public LiFiPeer getLocalNode() {
         return localNode;
     }
 

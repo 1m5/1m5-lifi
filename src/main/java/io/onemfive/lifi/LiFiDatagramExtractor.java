@@ -1,11 +1,11 @@
-package io.onemfive.uv;
+package io.onemfive.lifi;
 
-public class UVDatagramExtractor {
+public class LiFiDatagramExtractor {
 
     private byte[] payload;
     private Destination sender;
 
-    void extractUVDatagram(byte[] datagram) {
+    void extractLiFiDatagram(byte[] datagram) {
         // Extract payload
         this.payload = null;
         // Extract sender

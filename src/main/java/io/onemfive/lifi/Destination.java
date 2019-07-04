@@ -1,4 +1,4 @@
-package io.onemfive.uv;
+package io.onemfive.lifi;
 
 import io.onemfive.core.util.data.Base64;
 import io.onemfive.data.Hash;
@@ -10,7 +10,7 @@ public class Destination extends NetworkPeer {
     private Hash hash;
 
     public Destination() {
-        super(NetworkPeer.Network.UV.name(), null, null);
+        super(NetworkPeer.Network.LIFI.name(), null, null);
     }
 
     public String toBase64() {

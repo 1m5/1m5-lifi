@@ -1,11 +1,11 @@
-package io.onemfive.uv.network;
+package io.onemfive.lifi.network;
 
 import io.onemfive.data.NetworkPeer;
 import io.onemfive.sensors.PeerManager;
 
 import java.util.Map;
 
-public class UVPeerManager implements PeerManager {
+public class LiFiPeerManager implements PeerManager {
 
     @Override
     public NetworkPeer getLocalPeer() {

@@ -1,4 +1,4 @@
-package io.onemfive.uv.jamming;
+package io.onemfive.lifi.jamming;
 
 /**
  * Jam a particular Net contact.

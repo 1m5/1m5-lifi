@@ -1,15 +1,15 @@
-package io.onemfive.uv.tasks;
+package io.onemfive.lifi.tasks;
 
 import io.onemfive.core.util.tasks.TaskRunner;
-import io.onemfive.uv.UVSensor;
+import io.onemfive.lifi.LiFiSensor;
 
 import java.util.Properties;
 
 /**
  * A task for the Radio Sensor.
  */
-abstract class UVTask {
-    protected UVSensor sensor;
+abstract class LiFiTask {
+    protected LiFiSensor sensor;
     protected TaskRunner taskRunner;
     protected Properties properties;
     protected long periodicity = 60 * 60 * 1000; // 1 hour as default
@@ -18,14 +18,14 @@ abstract class UVTask {
     protected boolean completed = false;
     protected boolean longRunning = false;
 
-    public UVTask(UVSensor sensor, TaskRunner taskRunner, Properties properties) {
+    public LiFiTask(LiFiSensor sensor, TaskRunner taskRunner, Properties properties) {
         this.sensor = sensor;
         this.taskRunner = taskRunner;
         this.properties = properties;
         this.lastCompletionTime = System.currentTimeMillis();
     }
 
-    public UVTask(UVSensor sensor, TaskRunner taskRunner, Properties properties, long periodicity) {
+    public LiFiTask(LiFiSensor sensor, TaskRunner taskRunner, Properties properties, long periodicity) {
         this.sensor = sensor;
         this.taskRunner = taskRunner;
         this.properties = properties;

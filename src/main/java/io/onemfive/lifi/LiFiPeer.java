@@ -1,4 +1,4 @@
-package io.onemfive.uv;
+package io.onemfive.lifi;
 
 import io.onemfive.data.Addressable;
 import io.onemfive.data.DID;
@@ -6,21 +6,21 @@ import io.onemfive.data.JSONSerializable;
 import io.onemfive.data.NetworkPeer;
 
 /**
- * A peer on the UV network.
+ * A peer on the LiFi network.
  */
-public class UVPeer extends NetworkPeer implements Addressable, JSONSerializable {
+public class LiFiPeer extends NetworkPeer implements Addressable, JSONSerializable {
 
-    public UVPeer() {
+    public LiFiPeer() {
         this(null, null);
     }
 
-    public UVPeer(String username, String passphrase) {
-        super(NetworkPeer.Network.UV.name(), username, passphrase);
+    public LiFiPeer(String username, String passphrase) {
+        super(NetworkPeer.Network.LIFI.name(), username, passphrase);
     }
 
     @Override
     public Object clone() {
-        UVPeer clone = new UVPeer();
+        LiFiPeer clone = new LiFiPeer();
         clone.did = (DID)did.clone();
         clone.network = network;
         return clone;
