@@ -1,2 +1,2 @@
-# 1m5-uv
-Ultraviolet (UV) as a sensor.
+# 1m5-lifi
+Light Fidelity (LiFi) as a sensor.
