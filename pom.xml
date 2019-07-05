@@ -16,7 +16,7 @@
 <!--		<skipTests>true</skipTests>-->
 	</properties>
 
-	<name>1m5-uv</name>
+	<name>1m5-lifi</name>
 	<url>https://1m5.io</url>
 	<description>Invisible Matrix Services - Light Fidelity Library</description>
 	<inceptionYear>2019</inceptionYear>
