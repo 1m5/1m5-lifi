@@ -9,7 +9,6 @@ import io.onemfive.data.NetworkPeer;
 import io.onemfive.data.util.DLC;
 import io.onemfive.data.util.DataFormatException;
 import io.onemfive.sensors.*;
-import io.onemfive.lifi.network.LiFiPeerManager;
 
 import java.io.*;
 import java.util.Properties;
@@ -21,15 +20,9 @@ public class LiFiSensor extends BaseSensor implements LiFiSessionListener {
 
     private LiFiSession session;
     private LiFiPeer localNode;
-    private LiFiPeerManager peerManager;
 
     public LiFiSensor(SensorManager sensorManager, Envelope.Sensitivity sensitivity, Integer priority) {
         super(sensorManager, sensitivity, priority);
-    }
-
-    @Override
-    public PeerManager getPeerManager() {
-        return peerManager;
     }
 
     @Override
